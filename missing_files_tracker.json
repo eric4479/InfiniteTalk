@@ -1,0 +1,106 @@
+{
+  "description": "Repository of missing files and alternative download URLs for InfiniteTalk deployment",
+  "last_updated": "2025-09-28",
+  "deployment_targets": {
+    "runpod": {
+      "storage_path": "/workspace/InfiniteTalk",
+      "download_required": true
+    },
+    "local": {
+      "storage_path": "/home/eric/Code/InfiniteTalk",
+      "download_required": false
+    }
+  },
+  "missing_files": {
+    "wan_base_model_parts": {
+      "files": [
+        "diffusion_pytorch_model-00002-of-00007.safetensors",
+        "diffusion_pytorch_model-00003-of-00007.safetensors", 
+        "diffusion_pytorch_model-00004-of-00007.safetensors",
+        "diffusion_pytorch_model-00005-of-00007.safetensors",
+        "diffusion_pytorch_model-00006-of-00007.safetensors",
+        "diffusion_pytorch_model-00007-of-00007.safetensors"
+      ],
+      "repo": "Wan-AI/Wan2.1-I2V-14B-480P",
+      "path": "weights/Wan2.1-I2V-14B-480P",
+      "size_estimate": "6 x 1.5GB = 9GB",
+      "status": "required_for_inference"
+    },
+    "audio_encoder": {
+      "files": [
+        "config.json",
+        "preprocessor_config.json", 
+        "pytorch_model.bin"
+      ],
+      "repo": "TencentGameMate/chinese-wav2vec2-base",
+      "path": "weights/chinese-wav2vec2-base", 
+      "size_estimate": "500MB",
+      "status": "required_for_audio_processing"
+    },
+    "infinitetalk_weights": {
+      "files": [
+        "single/infinitetalk.safetensors"
+      ],
+      "repo": "MeiGen-AI/InfiniteTalk",
+      "path": "weights/InfiniteTalk",
+      "size_estimate": "100MB", 
+      "status": "required_for_talking_head"
+    }
+  },
+  "confirmed_urls": {
+    "base_models": {
+      "Wan2.1-I2V-14B-480P": {
+        "primary_url": "https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P",
+        "mirror_urls": [],
+        "size_gb": 15.7,
+        "required_for": ["video_generation", "image_to_video"],
+        "status": "confirmed"
+      },
+      "chinese-wav2vec2-base": {
+        "primary_url": "https://huggingface.co/TencentGameMate/chinese-wav2vec2-base",
+        "mirror_urls": [],
+        "size_gb": 0.5,
+        "required_for": ["audio_processing"],
+        "status": "confirmed"
+      },
+      "InfiniteTalk": {
+        "primary_url": "https://huggingface.co/MeiGen-AI/InfiniteTalk",
+        "mirror_urls": [],
+        "size_gb": 0.1,
+        "required_for": ["audio_conditioning"],
+        "status": "confirmed"
+      }
+    },
+    "workflow_templates": {},
+    "optional_models": {
+      "FusionX_LoRA": {
+        "primary_url": "https://huggingface.co/vrgamedevgirl84/Wan14BT2VFusioniX/blob/main/FusionX_LoRa/Wan2.1_I2V_14B_FusionX_LoRA.safetensors",
+        "mirror_urls": [],
+        "size_gb": 0.1,
+        "required_for": ["fast_inference"],
+        "status": "unverified"
+      },
+      "lightx2v": {
+        "primary_url": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors",
+        "mirror_urls": [],
+        "size_gb": 0.1,
+        "required_for": ["ultra_fast_inference"],
+        "status": "unverified"
+      }
+    }
+  },
+  "fallback_strategies": {
+    "download_failures": [
+      "Check huggingface-cli authentication",
+      "Try direct wget/curl download",
+      "Use mirror repositories",
+      "Manual download and placement"
+    ],
+    "missing_models": [
+      "Use CPU-only mode with reduced functionality",
+      "Skip optional models",
+      "Use smaller model variants",
+      "Generate mock/placeholder files for testing"
+    ]
+  }
+}
