@@ -1,20 +1,18 @@
 #!/bin/bash
-# Runpod Test Script for eric4479/InfiniteTalk Issue #123 Fix
+# Runpod Test Script for InfiniteTalk Issue #123 Fix
 
 echo "🚀 InfiniteTalk Issue #123 Fix - Runpod Test"
-echo "Repository: https://github.com/eric4479/InfiniteTalk"
-echo "Branch: fix-model-download-paths"
+echo "Repository: Clone with the fix-model-download-paths branch"
 echo "============================================="
 
-# Step 1: Clone your fork
-if [[ ! -d "InfiniteTalk" ]]; then
-    echo "📥 Cloning eric4479/InfiniteTalk..."
-    git clone https://github.com/eric4479/InfiniteTalk.git
-    cd InfiniteTalk
-else
-    echo "📁 InfiniteTalk directory already exists"
-    cd InfiniteTalk
+# Step 1: Clone the repository (assuming we're already in it or user cloned it)
+if [[ ! -f "generate_infinitetalk.py" ]]; then
+    echo "❌ Error: Please run this from the InfiniteTalk root directory"
+    echo "   Make sure you cloned a repository with the fix-model-download-paths branch"
+    exit 1
 fi
+
+echo "✅ InfiniteTalk directory found"
 
 # Step 2: Checkout the fix branch
 echo "🔄 Switching to fix-model-download-paths branch..."
