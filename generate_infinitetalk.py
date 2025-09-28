@@ -20,6 +20,7 @@ import wan
 from wan.configs import SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
 from wan.utils.utils import str2bool, is_video, split_wav_librosa
 from wan.utils.multitalk_utils import save_video_ffmpeg
+from src.config_manager import ModelPathManager
 from kokoro import KPipeline
 from transformers import Wav2Vec2FeatureExtractor
 from src.audio_analysis.wav2vec2 import Wav2Vec2Model
@@ -63,6 +64,27 @@ def _parse_args():
     parser = argparse.ArgumentParser(
         description="Generate a image or video from a text prompt or image using Wan"
     )
+    
+    # Model path configuration arguments
+    parser.add_argument(
+        "--model_base_dir",
+        type=str,
+        default=os.getenv('INFINITETALK_MODEL_DIR', './weights'),
+        help="Base directory for all models (overrides INFINITETALK_MODEL_DIR env var)"
+    )
+    parser.add_argument(
+        "--comfyui_model_dir", 
+        type=str,
+        default=os.getenv('COMFYUI_MODEL_DIR', None),
+        help="ComfyUI models directory (if running as ComfyUI node)"
+    )
+    parser.add_argument(
+        "--print_paths",
+        action="store_true",
+        default=False,
+        help="Print detected environment and model paths before generation"
+    )
+    
     parser.add_argument(
         "--task",
         type=str,
@@ -92,22 +114,22 @@ def _parse_args():
         "--ckpt_dir",
         type=str,
         default=None,
-        help="The path to the Wan checkpoint directory.")
+        help="The path to the Wan checkpoint directory (auto-detected if not specified).")
     parser.add_argument(
         "--infinitetalk_dir",
         type=str,
         default=None,
-        help="The path to the InfiniteTalk checkpoint directory.")
+        help="The path to the InfiniteTalk checkpoint directory (auto-detected if not specified).")
     parser.add_argument(
         "--quant_dir",
         type=str,
         default=None,
-        help="The path to the Wan quant checkpoint directory.")
+        help="The path to the Wan quant checkpoint directory (auto-detected if not specified).")
     parser.add_argument(
         "--wav2vec_dir",
         type=str,
         default=None,
-        help="The path to the wav2vec checkpoint directory.")
+        help="The path to the wav2vec checkpoint directory (auto-detected if not specified).")
     parser.add_argument(
         "--dit_path",
         type=str,
@@ -269,6 +291,27 @@ def _parse_args():
     )
     
     args = parser.parse_args()
+    
+    # Initialize model path manager with user-specified directories
+    path_manager = ModelPathManager(
+        base_model_dir=args.model_base_dir,
+        comfyui_model_dir=args.comfyui_model_dir
+    )
+    
+    # Set model path defaults if not provided
+    if args.ckpt_dir is None:
+        args.ckpt_dir = path_manager.get_model_path('wan_base')
+    if args.wav2vec_dir is None:
+        args.wav2vec_dir = path_manager.get_model_path('wav2vec')
+    if args.infinitetalk_dir is None:
+        args.infinitetalk_dir = path_manager.get_model_path('infinitetalk', 'infinitetalk.safetensors')
+    
+    # Print environment info if requested
+    if args.print_paths:
+        path_manager.print_environment_info()
+    
+    # Store path manager in args for later use
+    args._path_manager = path_manager
 
     _validate_args(args)
 
@@ -378,10 +421,10 @@ def audio_prepare_single(audio_path, sample_rate=16000):
         human_speech_array = loudness_norm(human_speech_array, sr)
         return human_speech_array
 
-def process_tts_single(text, save_dir, voice1):    
+def process_tts_single(text, save_dir, voice1, kokoro_path='weights/Kokoro-82M'):    
     s1_sentences = []
 
-    pipeline = KPipeline(lang_code='a', repo_id='weights/Kokoro-82M')
+    pipeline = KPipeline(lang_code='a', repo_id=kokoro_path)
 
     voice_tensor = torch.load(voice1, weights_only=True)
     generator = pipeline(
@@ -401,14 +444,14 @@ def process_tts_single(text, save_dir, voice1):
     
    
 
-def process_tts_multi(text, save_dir, voice1, voice2):
+def process_tts_multi(text, save_dir, voice1, voice2, kokoro_path='weights/Kokoro-82M'):
     pattern = r'\(s(\d+)\)\s*(.*?)(?=\s*\(s\d+\)|$)'
     matches = re.findall(pattern, text, re.DOTALL)
     
     s1_sentences = []
     s2_sentences = []
 
-    pipeline = KPipeline(lang_code='a', repo_id='weights/Kokoro-82M')
+    pipeline = KPipeline(lang_code='a', repo_id=kokoro_path)
     for idx, (speaker, content) in enumerate(matches):
         if speaker == '1':
             voice_tensor = torch.load(voice1, weights_only=True)
