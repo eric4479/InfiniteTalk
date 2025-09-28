@@ -92,39 +92,42 @@ else
     print_success "Sufficient disk space available"
 fi
 
-# Offer to download models
+# Offer to download models and setup templates
 echo
 echo "🎯 Setup complete! Choose your next step:"
 echo
-echo "1. Download essential models only (~15.6GB)"
-echo "   python scripts/download_models_optimized.py --skip-optional"
+echo "1. Download essential models + templates (~15.7GB)"
+echo "   python scripts/download_complete_infinitetalk.py --skip-optional"
 echo
-echo "2. Download all models including TTS (~16GB)" 
-echo "   python scripts/download_models_optimized.py"
+echo "2. Download all models + LoRA + TTS (~16.1GB)" 
+echo "   python scripts/download_complete_infinitetalk.py --include-lora"
 echo
-echo "3. Just check model status"
-echo "   python scripts/download_models_optimized.py --check-only"
+echo "3. Setup workflow templates only"
+echo "   python scripts/download_complete_infinitetalk.py --setup-templates"
 echo
-echo "4. Start Gradio interface (after models downloaded)"
+echo "4. Check what files are missing"
+echo "   python scripts/download_complete_infinitetalk.py --check-only"
+echo
+echo "5. Start Gradio interface (after models downloaded)"
 echo "   python app.py --share --server-port 7860"
 echo
 
 # Ask user preference
-read -p "Enter your choice (1-4) or press Enter to skip: " choice
+read -p "Enter your choice (1-5) or press Enter to skip: " choice
 
 case $choice in
     1)
-        print_status "Downloading essential models..."
-        if python scripts/download_models_optimized.py --skip-optional; then
-            print_success "Essential models downloaded"
+        print_status "Downloading essential models and templates..."
+        if python scripts/download_complete_infinitetalk.py --skip-optional; then
+            print_success "Essential models and templates downloaded"
         else
             print_error "Model download failed"
             exit 1
         fi
         ;;
     2)
-        print_status "Downloading all models..."
-        if python scripts/download_models_optimized.py; then
+        print_status "Downloading all models including LoRA and TTS..."
+        if python scripts/download_complete_infinitetalk.py --include-lora; then
             print_success "All models downloaded"
         else
             print_error "Model download failed"
@@ -132,10 +135,15 @@ case $choice in
         fi
         ;;
     3)
-        print_status "Checking model status..."
-        python scripts/download_models_optimized.py --check-only
+        print_status "Setting up workflow templates..."
+        python scripts/download_complete_infinitetalk.py --setup-templates
+        print_success "Templates setup complete"
         ;;
     4)
+        print_status "Checking model and file status..."
+        python scripts/download_complete_infinitetalk.py --check-only
+        ;;
+    5)
         print_status "Starting Gradio interface..."
         echo "   Interface will be available on port 7860"
         echo "   Press Ctrl+C to stop"
