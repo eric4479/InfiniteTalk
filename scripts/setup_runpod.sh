@@ -1,79 +1,158 @@
 #!/bin/bash
-# InfiniteTalk Runpod Setup Script
-# This script sets up the model path configuration on Runpod
+# Runpod Deployment Script for InfiniteTalk with Issue #123 fixes
+# This script provides automated setup for Runpod environments
 
-set -e
+set -e  # Exit on any error
 
-echo "🚀 InfiniteTalk Runpod Setup - Issue #123 Fix"
-echo "=============================================="
+echo "🚀 InfiniteTalk Runpod Deployment Script"
+echo "========================================"
+echo "Setting up InfiniteTalk with Issue #123 fixes..."
+echo
 
-# Check if we're on Runpod
-if [[ -n "$RUNPOD_POD_ID" ]]; then
-    echo "✅ Detected Runpod environment (Pod ID: $RUNPOD_POD_ID)"
-else
-    echo "⚠️  RUNPOD_POD_ID not set - are you running on Runpod?"
+# Check if we're in the right environment
+if [[ "$PWD" != *"/workspace"* ]] && [[ "$PWD" != *"/InfiniteTalk"* ]]; then
+    echo "⚠️  Warning: Not in expected Runpod environment"
+    echo "   Expected: /workspace or InfiniteTalk directory"
+    echo "   Current: $PWD"
+    echo "   Continuing anyway..."
 fi
 
-# Set Runpod-specific environment variables
-export INFINITETALK_MODEL_DIR="/workspace/models"
-export COMFYUI_MODEL_DIR="/workspace/ComfyUI/models"
-
-echo "📁 Model directories configured:"
-echo "   INFINITETALK_MODEL_DIR: $INFINITETALK_MODEL_DIR"
-echo "   COMFYUI_MODEL_DIR: $COMFYUI_MODEL_DIR"
-
-# Create model directories
-echo "📂 Creating model directories..."
-mkdir -p "$INFINITETALK_MODEL_DIR"
-mkdir -p "$COMFYUI_MODEL_DIR"
-
-# Check if ComfyUI exists
-if [[ -d "/workspace/ComfyUI" ]]; then
-    echo "✅ ComfyUI detected at /workspace/ComfyUI"
-    mkdir -p "$COMFYUI_MODEL_DIR"/{checkpoints,loras,vae,audio_encoders}
-else
-    echo "ℹ️  ComfyUI not found - skipping ComfyUI setup"
-fi
-
-# Install minimal dependencies if needed
-echo "📦 Installing required dependencies..."
-pip install huggingface_hub python-dotenv
-
-# Test the configuration
-echo "🧪 Testing model path configuration..."
-python3 -c "
-import os
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path.cwd() / 'src'))
-
-from config_manager import ModelPathManager
-
-path_manager = ModelPathManager()
-print('\n=== Runpod Configuration Test ===')
-path_manager.print_environment_info()
-
-# Verify paths
-expected_paths = {
-    'models_dir': '$INFINITETALK_MODEL_DIR',
-    'comfyui_dir': '$COMFYUI_MODEL_DIR'
+# Function to print status
+print_status() {
+    echo "📋 $1"
 }
 
-print('✅ Configuration test passed!')
-"
+# Function to print success
+print_success() {
+    echo "✅ $1"
+}
 
-# Check model download functionality
-echo "📥 Testing model download system..."
-python3 scripts/download_models.py --check-only
+# Function to print error
+print_error() {
+    echo "❌ $1"
+}
 
-echo ""
-echo "🎉 Runpod setup complete!"
-echo ""
-echo "📋 Next steps:"
-echo "   1. Download models: python3 scripts/download_models.py"
-echo "   2. Test inference: python3 generate_infinitetalk.py --print_paths --input_json examples/single_example_image.json"
-echo "   3. For ComfyUI: python3 scripts/download_models.py --create-symlinks"
-echo ""
-echo "🔧 Environment variables set:"
-echo "   export INFINITETALK_MODEL_DIR='$INFINITETALK_MODEL_DIR'"
-echo "   export COMFYUI_MODEL_DIR='$COMFYUI_MODEL_DIR'"
+# Check Python version
+print_status "Checking Python environment..."
+python_version=$(python --version 2>&1 | cut -d' ' -f2)
+echo "   Python version: $python_version"
+
+# Check CUDA availability
+if python -c "import torch; print('CUDA available:', torch.cuda.is_available())" 2>/dev/null; then
+    gpu_name=$(python -c "import torch; print(torch.cuda.get_device_name() if torch.cuda.is_available() else 'None')" 2>/dev/null)
+    echo "   GPU: $gpu_name"
+else
+    echo "   GPU: PyTorch not installed yet"
+fi
+
+# Install dependencies
+print_status "Installing Python dependencies..."
+if pip install -r requirements.txt --quiet; then
+    print_success "Dependencies installed"
+else
+    print_error "Failed to install dependencies"
+    exit 1
+fi
+
+# Verify PyTorch installation
+print_status "Verifying PyTorch installation..."
+if python -c "import torch; print(f'PyTorch {torch.__version__} with CUDA {torch.version.cuda if torch.cuda.is_available() else \"N/A\"}')" 2>/dev/null; then
+    print_success "PyTorch verification passed"
+else
+    print_error "PyTorch verification failed"
+    exit 1
+fi
+
+# Test environment configuration
+print_status "Testing environment configuration..."
+if python -c "
+from src.config_manager import ModelPathManager
+manager = ModelPathManager()
+print('Environment detected:')
+for key, value in manager.env_info.items():
+    if value:
+        print(f'  ✓ {key}')
+print(f'Model directory: {manager.base_model_dir}')
+" 2>/dev/null; then
+    print_success "Environment configuration verified"
+else
+    print_error "Environment configuration failed"
+    exit 1
+fi
+
+# Check disk space
+print_status "Checking available disk space..."
+available_space=$(df -h . | awk 'NR==2 {print $4}' | sed 's/G//')
+echo "   Available space: ${available_space}GB"
+
+if (( $(echo "$available_space < 20" | bc -l) )); then
+    print_error "Insufficient disk space (need 20GB+, have ${available_space}GB)"
+    echo "   Consider using --skip-optional flag for model downloads"
+else
+    print_success "Sufficient disk space available"
+fi
+
+# Offer to download models
+echo
+echo "🎯 Setup complete! Choose your next step:"
+echo
+echo "1. Download essential models only (~15.6GB)"
+echo "   python scripts/download_models_optimized.py --skip-optional"
+echo
+echo "2. Download all models including TTS (~16GB)" 
+echo "   python scripts/download_models_optimized.py"
+echo
+echo "3. Just check model status"
+echo "   python scripts/download_models_optimized.py --check-only"
+echo
+echo "4. Start Gradio interface (after models downloaded)"
+echo "   python app.py --share --server-port 7860"
+echo
+
+# Ask user preference
+read -p "Enter your choice (1-4) or press Enter to skip: " choice
+
+case $choice in
+    1)
+        print_status "Downloading essential models..."
+        if python scripts/download_models_optimized.py --skip-optional; then
+            print_success "Essential models downloaded"
+        else
+            print_error "Model download failed"
+            exit 1
+        fi
+        ;;
+    2)
+        print_status "Downloading all models..."
+        if python scripts/download_models_optimized.py; then
+            print_success "All models downloaded"
+        else
+            print_error "Model download failed"
+            exit 1
+        fi
+        ;;
+    3)
+        print_status "Checking model status..."
+        python scripts/download_models_optimized.py --check-only
+        ;;
+    4)
+        print_status "Starting Gradio interface..."
+        echo "   Interface will be available on port 7860"
+        echo "   Press Ctrl+C to stop"
+        python app.py --share --server-port 7860
+        ;;
+    *)
+        echo "Setup complete! Run the commands above when ready."
+        ;;
+esac
+
+echo
+print_success "InfiniteTalk deployment complete!"
+echo
+echo "🔗 Quick commands:"
+echo "   Test generation: python generate_infinitetalk.py --mode t2v --text 'test' --duration 30"
+echo "   Start interface: python app.py --share --server-port 7860"
+echo "   Check status: python scripts/test_runpod_basic.py"
+echo
+echo "📚 Full documentation: see RUNPOD_DEPLOYMENT.md"
+echo "🐛 Issues or questions: https://github.com/eric4479/InfiniteTalk/issues"
